@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monster">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Monster Collection</title>
+<style>
+:root{--g:#95D600;--bg:#121212;--card:#1e1e1e;--line:#3a3a3a;--mut:#9a9a9a;--red:#ff6b6b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:#ededed;font-family:-apple-system,system-ui,Roboto,sans-serif}
+header{padding:calc(env(safe-area-inset-top,0px) + 18px) 16px 8px}
+h1{margin:0 0 6px;font-size:26px;color:var(--g)}
+.row{display:flex;align-items:center;justify-content:space-between;font-size:14px}
+.link{background:none;border:0;color:var(--g);font-size:14px;padding:6px 0}
+.bar{height:6px;border-radius:3px;background:#2a2a2a;overflow:hidden;margin-top:4px}
+.bar>i{display:block;height:100%;background:var(--g);width:0;transition:width .3s}
+main{padding:0 12px calc(110px + env(safe-area-inset-bottom,0px))}
+h2{font-size:16px;margin:18px 4px 8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.slot{cursor:pointer}
+.box{aspect-ratio:3/4;border-radius:16px;background:var(--card);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:#666;font-size:48px}
+.box.full{border-color:var(--g)}
+.box img{width:100%;height:100%;object-fit:cover;display:block}
+.cap{text-align:center;font-size:13px;margin-top:6px;color:var(--mut);line-height:1.2;min-height:2.4em}
+.cap.on{color:#fff}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:0;background:var(--g);color:#000;font-size:34px;line-height:1;box-shadow:0 4px 14px #0008}
+.ov{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.ov.mid{align-items:center}
+.hidden{display:none!important}
+.card{background:#242424;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
+.ov.mid .card{border-radius:20px;margin:16px}
+.card h3{margin:0 0 6px;text-align:center}
+.card button{padding:14px;border-radius:12px;border:0;background:#333;color:#fff;font-size:16px}
+.card button.pri{background:var(--g);color:#000;font-weight:600}
+.card button.red{color:var(--red)}
+.card img{width:100%;max-height:55vh;object-fit:contain;border-radius:12px}
+.card input{padding:14px;border-radius:12px;border:1px solid var(--line);background:#1a1a1a;color:#fff;font-size:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Monster Collection</h1>
+  <div class="row"><span id="count"></span><button class="link" id="filter">Лише порожні</button></div>
+  <div class="bar"><i id="prog"></i></div>
+</header>
+<main id="main"></main>
+<button class="fab" id="fab" aria-label="Додати свій смак">+</button>
+
+<div class="ov hidden" id="sheet"><div class="card">
+  <h3 id="sTitle"></h3>
+  <button class="pri" id="bCam">Сфоткати банку</button>
+  <button id="bGal">Вибрати з галереї</button>
+  <button class="red hidden" id="bDelSlot">Видалити цей слот</button>
+  <button id="bCancel">Скасувати</button>
+</div></div>
+
+<div class="ov hidden" id="viewer"><div class="card">
+  <h3 id="vTitle"></h3>
+  <img id="vImg" alt="">
+  <button class="pri" id="bReplace">Замінити фото</button>
+  <button class="red" id="bDelPhoto">Видалити фото</button>
+  <button id="bClose">Закрити</button>
+</div></div>
+
+<div class="ov mid hidden" id="addBox"><div class="card">
+  <h3>Новий смак</h3>
+  <input id="newName" placeholder="Назва смаку" maxlength="40">
+  <button class="pri" id="bAdd">Додати</button>
+  <button id="bAddCancel">Скасувати</button>
+</div></div>
+
+<input id="fCam" type="file" accept="image/*" capture="environment" hidden>
+<input id="fGal" type="file" accept="image/*" hidden>
+
+<script>
+// Список не вичерпний — свої смаки можна додати кнопкою "+". Редагуй за потреби.
+const FLAVORS = {
+  "Monster Energy": ["Original Green","Lo-Carb","Absolutely Zero","Zero Sugar"],
+  "Ultra": ["White","Blue","Red","Gold","Violet","Paradise","Rosa","Fiesta Mango","Peachy Keen","Watermelon","Strawberry Dreams","Sunrise","Fantasy Ruby Red","Black","Vice Guava"],
+  "Juice Monster": ["Khaotic","Pipeline Punch","Mango Loco","Pacific Punch","Aussie Lemonade","Bad Apple","Ripper","Monarch","Papillon"],
+  "Java Monster": ["Mean Bean","Loca Moca","Irish Creme","Vanilla Light","Salted Caramel","Kona Big Wave"],
+  "Rehab": ["Peach Tea","Raspberry Tea","Tea + Lemonade","Green Tea"],
+  "Hydro": ["Purple Passion","Tropical Thunder","Manic Melon"],
+  "Reserve": ["Orange Dreamsicle","Watermelon","Kiwi Strawberry","White Pineapple"],
+  "Інші": ["Assault","Nitro Super Dry","Mule Ginger Brew"]
+};
+const slug = s => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'_').replace(/^_|_$/g,'');
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+
+// ---- сховище фото (IndexedDB) ----
+const dbp = new Promise((res, rej) => {
+  const r = indexedDB.open('monster', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('p');
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+const idb = (mode, fn) => dbp.then(d => new Promise((res, rej) => {
+  const t = d.transaction('p', mode); fn(t.objectStore('p'));
+  t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+}));
+const putPhoto = (id, blob) => idb('readwrite', s => s.put(blob, id));
+const delPhoto = id => idb('readwrite', s => s.delete(id));
+const loadAll = async () => { const d = await dbp; return new Promise(res => {
+  const m = {}, c = d.transaction('p').objectStore('p').openCursor();
+  c.onsuccess = () => { const cur = c.result; if (cur) { m[cur.key] = cur.value; cur.continue(); } else res(m); };
+  c.onerror = () => res(m);
+}); };
+
+// ---- стан ----
+let photos = {}, urls = {}, cur = null, onlyMissing = false;
+let customs = JSON.parse(localStorage.getItem('customs') || '[]');
+const saveCustoms = () => localStorage.setItem('customs', JSON.stringify(customs));
+const setUrl = id => { if (urls[id]) URL.revokeObjectURL(urls[id]); urls[id] = photos[id] ? URL.createObjectURL(photos[id]) : null; };
+
+function allFlavors() {
+  const out = [];
+  for (const [line, names] of Object.entries(FLAVORS)) names.forEach(n => out.push({id: slug(line + ' ' + n), name: n, line}));
+  customs.forEach(n => out.push({id: 'c_' + slug(n), name: n, line: 'Мої смаки', custom: true}));
+  return out;
+}
+
+function render() {
+  const all = allFlavors(), have = all.filter(f => photos[f.id]).length;
+  $('count').textContent = `Зібрано ${have} з ${all.length}`;
+  $('prog').style.width = (all.length ? have / all.length * 100 : 0) + '%';
+  $('filter').textContent = onlyMissing ? 'Показати всі' : 'Лише порожні';
+  const lines = [...new Set(all.map(f => f.line))];
+  $('main').innerHTML = lines.map(line => {
+    const list = all.filter(f => f.line === line);
+    const shown = onlyMissing ? list.filter(f => !photos[f.id]) : list;
+    if (!shown.length) return '';
+    const got = list.filter(f => photos[f.id]).length;
+    return `<h2>${esc(line)} (${got}/${list.length})</h2><div class="grid">` + shown.map(f => {
+      const u = urls[f.id];
+      return `<div class="slot" data-id="${f.id}"><div class="box ${u ? 'full' : ''}">${u ? `<img src="${u}" alt="">` : '+'}</div><div class="cap ${u ? 'on' : ''}">${esc(f.name)}</div></div>`;
+    }).join('') + '</div>';
+  }).join('');
+}
+
+const show = (id, on) => $(id).classList.toggle('hidden', !on);
+const flavor = () => allFlavors().find(f => f.id === cur);
+
+$('main').addEventListener('click', e => {
+  const s = e.target.closest('.slot'); if (!s) return;
+  cur = s.dataset.id; const f = flavor(); if (!f) return;
+  if (photos[cur]) { $('vTitle').textContent = f.name; $('vImg').src = urls[cur]; show('viewer', true); }
+  else openSheet();
+});
+function openSheet() {
+  const f = flavor(); $('sTitle').textContent = f.name;
+  show('bDelSlot', !!f.custom); show('sheet', true);
+}
+$('bCancel').onclick = () => show('sheet', false);
+$('sheet').onclick = e => { if (e.target.id === 'sheet') show('sheet', false); };
+$('bCam').onclick = () => { show('sheet', false); $('fCam').click(); };
+$('bGal').onclick = () => { show('sheet', false); $('fGal').click(); };
+$('bDelSlot').onclick = async () => {
+  const f = flavor(); customs = customs.filter(n => 'c_' + slug(n) !== f.id); saveCustoms();
+  await delPhoto(f.id); delete photos[f.id]; setUrl(f.id); show('sheet', false); render();
+};
+
+$('bClose').onclick = () => show('viewer', false);
+$('viewer').onclick = e => { if (e.target.id === 'viewer') show('viewer', false); };
+$('bReplace').onclick = () => { show('viewer', false); openSheet(); };
+$('bDelPhoto').onclick = async () => {
+  await delPhoto(cur); delete photos[cur]; setUrl(cur); show('viewer', false); render();
+};
+
+$('fab').onclick = () => { $('newName').value = ''; show('addBox', true); $('newName').focus(); };
+$('bAddCancel').onclick = () => show('addBox', false);
+$('bAdd').onclick = () => {
+  const n = $('newName').value.trim();
+  if (n && !customs.some(x => x.toLowerCase() === n.toLowerCase())) { customs.push(n); saveCustoms(); }
+  show('addBox', false); render();
+};
+$('filter').onclick = () => { onlyMissing = !onlyMissing; render(); };
+
+// ---- фото ----
+function shrink(file) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1200 / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u);
+      c.toBlob(b => b ? res(b) : rej(new Error('blob')), 'image/jpeg', 0.85);
+    };
+    im.onerror = rej; im.src = u;
+  });
+}
+async function handle(inp) {
+  const file = inp.files[0]; inp.value = '';
+  if (!file || !cur) return;
+  try {
+    const blob = await shrink(file);
+    await putPhoto(cur, blob); photos[cur] = blob; setUrl(cur); render();
+  } catch (err) { alert('Не вдалося зберегти фото'); }
+}
+$('fCam').onchange = () => handle($('fCam'));
+$('fGal').onchange = () => handle($('fGal'));
+
+// ---- старт ----
+(async () => {
+  try { photos = await loadAll(); Object.keys(photos).forEach(setUrl); } catch (e) {}
+  render();
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+})();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
